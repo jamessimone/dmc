@@ -12,7 +12,6 @@ var green     = logger.green;
 var matchOpts = { matchBase: true };
 
 function loadTestClasses(client, opts) {
-
   return new Promise(function(resolve, reject) {
     var nsArg = (opts.ns) ? '\'' + opts.ns + '\'' : null;
 
@@ -170,7 +169,8 @@ var run = module.exports.run = function(opts, cb) {
 
     return runTests(client, matchedTests, opts)
       .then(function(tests) {
-        var hasFailures = false;
+        var failedTests = 0;
+        var failedTestOutput = [];
         var currentClass = null;
         var totalTime = parseFloat(0);
         var openingDelim = '===> ';
@@ -184,22 +184,29 @@ var run = module.exports.run = function(opts, cb) {
           var testTimeInSeconds = t.RunTime/1000 +'s';
           totalTime += parseFloat(testTimeInSeconds);
           if(t.Outcome === 'Fail') {
-            hasFailures = true;
-            logger.error('[fail] ' + t.ApexClass.Name + ': ' + t.MethodName + ' => ' + t.Message + ' => ' +t.StackTrace + ', time: ' + testTimeInSeconds);
+            failedTests++;
+            var failedTestLine = '[fail] ' + t.ApexClass.Name + ': ' + t.MethodName + ' => ' + t.Message + ' => ' +t.StackTrace + ', time: ' + testTimeInSeconds;
+            if(opts.failingTestsLast) {
+              failedTestOutput.push(failedTestLine)
+            } else {
+              logger.error(failedTestLine);
+            }
           } else {
             logger.info(green('[pass] ') + t.ApexClass.Name + ': ' + t.MethodName + ', time: ' + testTimeInSeconds);
           }
         });
-
         logger.log(openingDelim + 'Number of tests run: ' + numberOfTests + closingDelim);
         logger.log(openingDelim + 'Total test time: ' + totalTime.toFixed(5) +'s' + closingDelim);
-        return hasFailures
+        if(failedTests > 0 && opts.failingTestsLast) {
+          _.each(failedTestOutput, logger.error);
+        }
+        return failedTests;
       });
   })
 
-  .then(function(hasFailures){
-    if(hasFailures) {
-      return cb(new Error('Failed -> test failures'));
+  .then(function(failedTests){
+    if(failedTests) {
+      return cb(new Error('Failed -> ' + failedTests + ' test failures'));
     }
     cb();
   })
