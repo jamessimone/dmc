@@ -29,21 +29,23 @@ var run = module.exports.run = function(opts) {
 
   .then(function(allFiles) {
     logger.log('now watching ' + hl(allFiles.length) + ' files');
-    watch(_.uniq(allFiles), function(f) {
-      logger.log('file changed: ' + f);
-      deploy.run({
-        org: opts.org,
-        oauth: opts.oauth,
-        globs: [f],
-        meta: opts.meta
-      }, function(err, res) {
-        if(err) {
-          logger.debug(err);
-          logger.error('deploy failed: re-watching files');
-        } else {
-          logger.success('deploy complete: re-watching files');
-        }
-      });
+    watch(_.uniq(allFiles), function(evt, name) {
+      if(evt === 'update') {
+        logger.log('file changed: ' + name);
+        deploy.run({
+          org: opts.org,
+          oauth: opts.oauth,
+          globs: [name],
+          meta: opts.meta
+        }, function(err, res) {
+          if(err) {
+            logger.error(err);
+            logger.error('deploy failed: re-watching files');
+          } else {
+            logger.success('deploy complete: re-watching files');
+          }
+        });
+    }
     });
   });
 

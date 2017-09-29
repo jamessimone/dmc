@@ -50,7 +50,7 @@
     "nforce": "^1.4.1",
     "nforce-metadata": "^1.1.0",
     "nforce-tooling": "jeffdonthemic/nforce-tooling#5d9f4704e0ea520f1d9fc4f3ec272f09afaa2549",
-    "node-watch": "^0.3.4",
+    "node-watch": "^0.5.5",
     "open": "0.0.5",
     "rimraf": "^2.3.2",
     "update-notifier": "^1.0.2"
