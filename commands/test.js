@@ -18,7 +18,7 @@ function loadTestClasses(client, opts) {
     var query = [
       'SELECT Id, Name, SymbolTable, IsValid',
       'FROM ApexClass',
-      (opts.ns) ?  'WHERE NamespacePrefix = ' + nsArg : '',
+      (opts.ns) ? 'WHERE NamespacePrefix = ' + nsArg : "WHERE NamespacePrefix != 'et4ae5'",
       'ORDER BY Name'
     ].join(' ');
 
