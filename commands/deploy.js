@@ -16,6 +16,8 @@ var dmcignore = require('../lib/dmcignore');
 var resolve   = require('../lib/resolve');
 var hl        = logger.highlight;
 
+var timesBeingDeployed = 0;
+
 function createStubFiles(map, client) {
   var keys = map.index.getMemberTypeNames();
 
@@ -170,6 +172,7 @@ function createDeployArtifacts(map, containerId, client) {
 
 //TOOLING API DEPLOY
 function deployContainer(containerId, client) {
+  if(!containerId) return;
 
   return new Promise(function(resolve, reject) {
 
@@ -220,7 +223,7 @@ function deployContainer(containerId, client) {
         } else {
           setTimeout(function() {
             poll();
-          }, 1000);
+          }, 1500);
         }
       });
     }
@@ -254,46 +257,54 @@ function deleteContainer(containerId, client) {
 function runToolingDeploy(map, client) {
   var containerId;
 
-  return Promise.resolve()
+  if(timesBeingDeployed > 0) return Promise.resolve();
 
+  return Promise.resolve()
+    .then(timesBeingDeployed++)
     .then(function() {
       logger.log('loading related metadata ids');
-      return map.fetchIds().then(function(results) {
-        logger.log('loaded ' + hl(results.length) + ' ids');
+
+      return map.fetchIds().then((results) => {
+        if(results.length > 0) {
+          logger.log('loaded ' + hl(results.length) + ' ids');
+        }
       });
     })
 
     // create stub files if necessary
-    .then(function() {
+    .then(() => {
       logger.log('creating stub files');
       return createStubFiles(map, client).then(function(stubs) {
+        if(stubs.length === 0) { return; }
         logger.log('created ' + hl(stubs.length) + ' stub files');
       });
     })
 
     // create static resources
-    .then(function() {
+    .then(() => {
       logger.log('creating static resources');
       return createStaticResources(map, client).then(function(srs) {
+        if (srs.length === 0) { return; }
         logger.log('deployed ' + hl(srs.length) + ' static resources');
       });
     })
 
-    .then(function(){
+    .then(() => {
       return createContainer(client);
     })
 
-    .then(function(id) {
+    .then((id) => {
       containerId = id;
       return createDeployArtifacts(map, containerId, client);
     })
 
-    .then(function(){
+    .then(() => {
       return deployContainer(containerId, client);
     })
 
-    .finally(function() {
+    .finally(() => {
       if(containerId) {
+        timesBeingDeployed = 0;
         return deleteContainer(containerId, client);
       }
     });
@@ -303,34 +314,37 @@ function runToolingDeploy(map, client) {
 function logDetails(details, opts) {
   if(!details) return;
 
+
+  var changed = false;
   var cType;
   var method;
 
   if(details.componentSuccesses) {
 
-    logger.success('component successes [' + details.componentSuccesses.length + '] ====>');
-
     _(details.componentSuccesses)
-      .map(function(e) {
-        e.cType = (_.isString(e.componentType) && e.componentType.length) ?
-          (e.componentType + ': ') :
-          '';
+    .map(function(e) {
+      e.cType = (_.isString(e.componentType) && e.componentType.length) ?
+      (e.componentType + ': ') :
+      '';
 
-        e.method =
-          (e.created) ? 'create'  :
-          (e.changed) ? 'update'  :
-          (e.deleted) ? 'destroy' :
-          'noChange';
+      e.method =
+      (e.created) ? 'create'  :
+      (e.changed) ? 'update'  :
+      (e.deleted) ? 'destroy' :
+      'noChange';
 
-        return e;
-      })
-      .sortBy(function(e) {
-        return e.cType + e.fullName;
-      })
-      .each(function(e) {
-        logger[e.method](e.cType + e.fullName);
-      })
-      .value();
+      return e;
+    })
+    .sortBy(function(e) {
+      return e.cType + e.fullName;
+    })
+    .each(function(e) {
+      if(e.fullName !== "package.xml" && e.changed) changed = true;
+      logger[e.method](e.cType + e.fullName);
+    })
+    .value();
+
+    if(changed) logger.success('component successes [' + details.componentSuccesses.length + '] ====>');
   }
 
   if(details.componentFailures) {
@@ -360,7 +374,7 @@ function logDetails(details, opts) {
       .value();
   }
 
-  if(details.runTestResult) {
+  if (details.runTestResult && details.runTestResult.numTestsRun > 0) {
     if(details.runTestResult.numFailures) {
       logger.error('test results ====>');
     } else {
@@ -420,6 +434,7 @@ function logDetails(details, opts) {
 }
 
 function runMetadataDeploy(map, client, opts) {
+  if (timesBeingDeployed > 0) return Promise.resolve();
 
   return new Promise(function(resolve, reject) {
     var archive = archiver('zip');
@@ -444,7 +459,8 @@ function runMetadataDeploy(map, client, opts) {
 
     promise.then(function(results){
       logDetails(results.details, opts);
-      resolve();
+      timesBeingDeployed = 0;
+      resolve(1);
     }).catch(function(err) {
       if(err.details) {
         logDetails(err.details, opts);
@@ -520,9 +536,7 @@ var run = module.exports.run = function(opts, cb) {
 
   return resolve(cb, function(){
 
-    var containerId;
     var client;
-    var oauth = opts.oauth;
     var globs = (opts.globs && opts.globs.length > 0) ?
       opts.globs:
       ['src/**/*'];
@@ -538,24 +552,25 @@ var run = module.exports.run = function(opts, cb) {
 
     .then(config.loadAll)
 
-    .then(function(){
+    .then(() => {
       return dmcignore.load().then(function(lines) {
         ignores = lines;
       });
     })
 
-    .then(function(){
+    .then(() => {
       return sfClient.getClient(opts.oauth);
     })
 
     // load the index for the org
-    .then(function(sfdcClient) {
+    .then((sfdcClient) => {
       client = sfdcClient;
       return map.autoLoad();
     })
 
     // search src/ for file matches
-    .then(function() {
+    .then(() => {
+      if(timesBeingDeployed > 0) return Promise.resolve();
       logger.log('searching for local metadata');
       return getFiles({ globs: globs, ignores: ignores })
         .then(function(files) {
@@ -567,8 +582,8 @@ var run = module.exports.run = function(opts, cb) {
         });
     })
 
-    .then(function() {
-
+    .then(() => {
+      if(map.getFilePathsForDeploy().length === 0) { return; }
       var deployMode = config.get('deploy_mode') || 'dynamic';
 
       logger.log('deploy mode: ' + deployMode);
@@ -578,7 +593,7 @@ var run = module.exports.run = function(opts, cb) {
         return runToolingDeploy(map, client);
       } else {
         logger.info('deploy api: ' + hl('metadata'));
-        return runMetadataDeploy(map, client, opts);
+        return runMetadataDeploy(map, client, opts).then(timesBeingDeployed = 1);
       }
     });
 

@@ -17,36 +17,39 @@ var globOpts = {
 
 var run = module.exports.run = function(opts) {
 
-  if(!opts.globs || !opts.globs.length) {
+    if(!opts.globs || !opts.globs.length) {
     opts.globs = [ 'src/**/*' ];
-  }
+    }
 
-  Promise.reduce(opts.globs, function(allFiles, file) {
-    return glob(file, globOpts).then(function(files) {
-      return allFiles.concat(files);
+    Promise.reduce(opts.globs, function(allFiles, file) {
+    return glob(file, globOpts)
+        .then((files) => {
+        return allFiles.concat(files);
     });
-  }, [])
+    }, [])
 
   .then(function(allFiles) {
-    logger.log('now watching ' + hl(allFiles.length) + ' files');
-    watch(_.uniq(allFiles), function(evt, name) {
-      if(evt === 'update') {
-        logger.log('file changed: ' + name);
-        deploy.run({
-          org: opts.org,
-          oauth: opts.oauth,
-          globs: [name],
-          meta: opts.meta
-        }, function(err, res) {
-          if(err) {
-            logger.error(err);
-            logger.error('deploy failed: re-watching files');
-          } else {
-            logger.success('deploy complete: re-watching files');
-          }
+        logger.log('now watching ' + hl(allFiles.length) + ' files');
+
+        var watcher = watch(_.uniq(allFiles), { encoding: 'utf8' });
+        var promiseWatcher = Promise.promisify((evt, name) => {
+            if(evt === 'update') {
+                deploy.run({
+                    org: opts.org,
+                    oauth: opts.oauth,
+                    globs: [name],
+                    meta: opts.meta
+                }, function(err, res) {
+                    if(err) {
+                        logger.error('deploy failed: re-watching files');
+                    } else {
+                        if(res && res !== null) logger.success('deploy complete: re-watching files');
+                    }
+                });
+            }
         });
-    }
-    });
+
+        watcher.on('change', promiseWatcher);
   });
 
 };
