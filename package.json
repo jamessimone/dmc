@@ -5,10 +5,9 @@
   "main": "index.js",
   "scripts": {
     "preversion": "npm test",
-    "test": "./node_modules/mocha/bin/mocha ./test",
+    "test": "mocha ./test",
     "postversion": "git push && git push --tags"
   },
-  "preferGlobal": "true",
   "bin": {
     "dmc": "cli/dmc.js"
   },
@@ -31,28 +30,28 @@
   },
   "homepage": "https://github.com/kevinohara80/dmc",
   "devDependencies": {
-    "mocha": "^3.1.0",
-    "should": "^4.1.0"
+    "mocha": "^8.0.1",
+    "should": "^13.2.3"
   },
   "dependencies": {
-    "adm-zip": "^0.4.7",
-    "archiver": "^1.1.0",
-    "async": "^0.9.0",
-    "bluebird": "^2.9.25",
-    "cli-spinner": "^0.2.4",
-    "colors": "^1.0.3",
-    "commander": "^2.5.0",
-    "fs-extra": "^0.30.0",
-    "glob": "^5.0.10",
-    "handlebars": "^2.0.0",
-    "lodash": "^3.10.1",
-    "minimatch": "^3.0.2",
-    "nforce": "^1.4.1",
-    "nforce-metadata": "^1.1.0",
+    "adm-zip": "0.4.16",
+    "archiver": "4.0.1",
+    "async": "3.2.0",
+    "bluebird": "3.7.2",
+    "cli-spinner": "0.2.10",
+    "colors": "1.4.0",
+    "commander": "5.1.0",
+    "fs-extra": "9.0.1",
+    "glob": "7.1.6",
+    "handlebars": "4.7.6",
+    "lodash": "4.17.15",
+    "minimatch": "3.0.4",
+    "nforce": "^1.12.2",
+    "nforce-metadata": "^1.1.2",
     "nforce-tooling": "jeffdonthemic/nforce-tooling#5d9f4704e0ea520f1d9fc4f3ec272f09afaa2549",
-    "node-watch": "^0.5.5",
-    "open": "0.0.5",
-    "rimraf": "^2.3.2",
-    "update-notifier": "^1.0.2"
+    "node-watch": "0.6.4",
+    "open": "7.0.4",
+    "rimraf": "3.0.2",
+    "update-notifier": "4.1.0"
   }
 }
